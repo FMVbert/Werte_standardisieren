@@ -45,9 +45,11 @@ def readvalue(i,ZyklenAlt):
 
         #if Zyklen > ZyklenAlt:
 
-
-
-
+    except RuntimeError as e:
+        # GPIO access may require sudo permissions
+        # Other RuntimeError exceptions may occur, but
+        # are common.  Just try again.
+        log.error("RuntimeError: {}".format(e))
 
 
     
