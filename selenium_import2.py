@@ -5,33 +5,60 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.common.action_chains import ActionChains
+from selenium.webdriver.chrome.options import Options
+import shutil
 import time
 import re
 import pandas as pd
 from selenium.common.exceptions import TimeoutException
 import numpy as np
+from io import StringIO
 
 def setup_driver():
     """Set up Selenium WebDriver."""
-    service = Service(ChromeDriverManager().install())
-    driver = webdriver.Chrome(service=service)
+    #service = Service(ChromeDriverManager().install())
+    #driver = webdriver.Chrome(service=service)
+    options = Options()
+    options.add_argument('--headless')
+    options.add_argument('--no-sandbox')
+    options.add_argument('--disable-dev-shm-usage')
+    #service = Service('/usr/bin/chromedriver')  # Passen Sie den Pfad zum Chromedriver an
+    chromedriver_path = shutil.which("chromedriver")
+    service = Service(chromedriver_path)
+    driver = webdriver.Chrome(service=service, options=options)
+    return driver
     return driver
 
 def extract_tables_from_frame(driver, program):
     """Extracts tables from the current frame, adjusts decimal points, and returns as DataFrame."""
     try:
-        tables = pd.read_html(driver.page_source, thousands=None, decimal=",")  # Read tables from the HTML page source
+        #tables = pd.read_html(driver.page_source, thousands=None, decimal=",")  # Read tables from the HTML page source
+        html_content = StringIO(driver.page_source)
+        tables = pd.read_html(html_content, thousands=None, decimal=",")
         heading = tables[0]
         empty_data = []
         empty_df = pd.DataFrame(empty_data)
         data_table = empty_df
+        #print("Anzahl der Tabellen im Link: ",len(tables))
         if len(tables) >= 3:
 
-            for table in tables:
-                if table[0][0][0] == '+':
-                    data_table = pd.concat([data_table, table.iloc[1:]])
+            i = 2
+            n = 1
 
-            print(data_table)
+            while i+1 <= len(tables):
+                data_table = pd.concat([data_table, tables[i].iloc[1:]])
+                i = i + 3
+
+            '''for table in tables:
+                print("Inhalt Tabelle ",i," ",table[0][0])
+                #print(table.iloc[0:])
+                print("erster Wert Tabelle ",i,": ",table[0][0][0])
+                #if table[0][0][0] == '+':
+                if table[0][0][0] == 'P':
+                    data_table = pd.concat([data_table, table.iloc[1:]])
+                i=i+1  '''              
+
+            #print(data_table)
 
             filename_table = tables[1]
             # Convert comma decimals to float in the data_table
@@ -164,7 +191,7 @@ def extract_and_save_tables(driver, program):
 def find_and_process_links(driver, url, program):
     """Finds links containing dates and processes them."""
     driver.get(url)
-    time.sleep(5)  # Allow time for the page to load
+    time.sleep(2)  # Allow time for the page to load
     links = driver.find_elements(By.TAG_NAME, "a")
     date_pattern = re.compile(r'\d{4}-\d{2}-\d{2}')  # Regex to match dates
     all_dataframes = pd.DataFrame()
@@ -175,7 +202,7 @@ def find_and_process_links(driver, url, program):
             ActionChains(driver).move_to_element(link).click(link).perform()
             WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.TAG_NAME, 'body')))
             df = extract_and_save_tables(driver, program)
-            print(df)
+            #print(df)
             if not df.empty:
                 all_dataframes = pd.concat([all_dataframes, df], ignore_index=True)
 
