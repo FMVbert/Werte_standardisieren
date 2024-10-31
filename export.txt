@@ -1,0 +1,1 @@
+export INFLUXDB_TOKEN=aAtsXT3aPHFwX6yNGaZutg8e0GV7UH_EZMdZvnPqcatqwxo12koDlTviL-NOd7BhKiycJc336XBYxdyo5EJb3Q==

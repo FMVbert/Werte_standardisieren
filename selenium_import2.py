@@ -102,7 +102,7 @@ def extract_tables_from_frame(driver, program):
             #delete all NaN columns
             data_table = data_table.loc[:,data_table.columns.dropna()]
 
-            print(data_table)
+            #print(data_table)
 
             '''if heading[0][0].find("A0") > 0:
                 #data_table = tables[4]
@@ -136,10 +136,10 @@ def extract_tables_from_frame(driver, program):
                 empty_df = pd.DataFrame(empty_data)
                 data_table = empty_df'''
 
-            if not program:
+            '''if not program:
                 print("leer")
             else:
-                print(program)
+                print(program)'''
 
             if not program:
                 return data_table
@@ -198,7 +198,7 @@ def find_and_process_links(driver, url, program):
 
     for link in links:
         if date_pattern.search(link.text):
-            print(f"Processing link with date: {link.text}")
+            #print(f"Processing link with date: {link.text}")
             ActionChains(driver).move_to_element(link).click(link).perform()
             WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.TAG_NAME, 'body')))
             df = extract_and_save_tables(driver, program)
@@ -257,7 +257,7 @@ def get_data_from_url(url,program):
         final_df.columns = [col.split(' ')[0] for col in final_df.columns]
         final_df = final_df.iloc[3:]
         final_df.reset_index(drop=True, inplace=True)
-        print("Data collection complete. Data shape:", final_df.shape)
+        #print("Data collection complete. Data shape:", final_df.shape)
         return final_df
     finally:
         driver.quit()
