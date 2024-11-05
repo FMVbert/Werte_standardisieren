@@ -11,10 +11,13 @@ import selenium_import2
 from prometheus_client import Gauge, start_http_server
 from datetime import datetime
 from datetime import date
+import pytz
 from dotenv import load_dotenv, main
 import os
 from influxdb_client import InfluxDBClient, Point, WriteOptions
 from influxdb_client.client.write_api import SYNCHRONOUS
+
+timezone = pytz.timezone('Europe/Vienna')
 #from systemd.journal import JournalHandler
 
 # Setup logging to the Systemd Journal
@@ -45,7 +48,7 @@ def write_data(self,data,write_option=SYNCHRONOUS):
     write_api = self._client.write_api(write_option)
     write_api.write(self._bucket, self._org , data,write_precision='s')
 
-def readvalue(i,ZyklenAlt,client,dfact):
+def readvalue(i,ZyklenAlt,dfact,urldb,token,org,bucket):
     try:
         df = pd.DataFrame()
 
@@ -60,7 +63,7 @@ def readvalue(i,ZyklenAlt,client,dfact):
         for url in urls:
             url = url.replace('day1',day1)
             url = url.replace('day2',day2)
-            #print(url)
+            print(url)
             #df = df.append(selenium_import2.get_data_from_url(url,program))
             df = pd.concat([df, selenium_import2.get_data_from_url(url,program)])
         #print(df)
@@ -87,20 +90,41 @@ def readvalue(i,ZyklenAlt,client,dfact):
 
         #print(df.datetime)
         #print(df.index_y)
+        print(df)
 
-        #for ind in df.index:
-            #if df['minute'][ind] == df['minute'][ind+1]:
-            #print(df['datetime'][ind])
-                #df['datetime'][ind+3] = df['datetime'][ind+3] + df['Zykluszeit'][ind]
-            #if ind+3 == len(df):
-             #   break
+        for ind in df.index:
+            if df['minute'][ind] == df['minute'][ind+1]:
+                print(df['datetime'][ind])
+                df['datetime'][ind+3] = df['datetime'][ind+3] + df['Zykluszeit'][ind]
+            if ind+3 == len(df):
+                break
 
         #print(df.datetime)
         if not dfact.empty:
+            #Vergleich des neuen mit dem vorherigen df, löschen aller vorherigen Zeilen
             dfnew1 = pd.concat([df,dfact])
             dfnew2 = dfnew1.drop_duplicates(keep=False)
-            dfnew2.set_index("datetime")
-            client.write_data(dfnew2)
+
+            #Definition eines neuen Index basierend auf Datum und Zeit
+            format = '%Y-%m-%d %H:%M:%S'
+            dfnew2['datetime'] = dfnew2['datetime'].astype(str)
+            dfnew2['Datetime'] = pd.to_datetime(dfnew2["datetime"], format=format)
+            #print(df['Datetime'])
+            dfnew2 = dfnew2.set_index(pd.DatetimeIndex(dfnew2["Datetime"]))
+            dfnew2.index = dfnew2.index.tz_localize('Europe/Vienna')
+            #dfnew2.index = dfnew2.index.tz_convert(pytz.utc)
+            #dfnew2.set_index(["Datetime"], inplace=True)
+            #dfnew2.index = dfnew2.index.tz_convert('Europe/Vienna')
+            dfnew2.index = dfnew2.index.tz_convert('UTC')
+            dfnew2 = dfnew2.drop(["datetime"], axis=1)
+            #print(dfnew2.columns)
+            
+            #Schreibt den df in InfluxDB
+            '''with InfluxDBClient(url=urldb, token=token, org=org) as client:
+                with client.write_api(write_options=SYNCHRONOUS) as write_api:
+                    #write_api.write(bucket=bucket, record=dfnew2)
+                    write_api.write(bucket=bucket, record=dfnew2, data_frame_measurement_name='demo')'''
+
             print(dfnew2)
         else:
             print(df)
@@ -118,9 +142,9 @@ def readvalue(i,ZyklenAlt,client,dfact):
     
 if __name__ == "__main__":
     # Expose metrics
-    metrics_port = 8001
+    '''metrics_port = 8001
     start_http_server(metrics_port)
-    print("Serving sensor metrics on :{}".format(metrics_port))
+    print("Serving sensor metrics on :{}".format(metrics_port))'''
     #log.info("Serving sensor metrics on :{}".format(metrics_port))
 
     load_dotenv()
@@ -129,19 +153,19 @@ if __name__ == "__main__":
     token = os.getenv('TOKEN')
     org = os.getenv('ORG')
     bucket = os.getenv('BUCKET')
-    url = "http://172.21.135.18:8086"
+    urldb = "http://172.21.135.18:8086"
 
     #IC = InfluxClient(token,org,bucket,url)
 
-    client = InfluxDBClient(url=url, token=token)
+    #client = InfluxDBClient(url=url, token=token)
     
     i = 0
     ZyklenAlt = 0
     dfact = pd.DataFrame()
 
     while True:
-        dfact = readvalue(i,ZyklenAlt,client,dfact)
+        dfact = readvalue(i,ZyklenAlt,dfact,urldb,token,org,bucket)
         #print(dfact)
-        time.sleep(15)
+        time.sleep(30)
 
     time.sleep(1)
