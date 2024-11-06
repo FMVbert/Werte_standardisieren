@@ -1,0 +1,13 @@
+[Unit]
+Description=A09-370A scraper
+After=network.target
+StartLimitIntervalSec=0
+[Service]
+Type=simple
+Restart=always
+RestartSec=1
+User=root
+ExecStart=/root/venv/bin/python /root/GIT-SGcollector/ALSplot.py A09-370A
+
+[Install]
+WantedBy=multi-user.target

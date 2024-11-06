@@ -1,0 +1,14 @@
+[Unit]
+Description=%i scraper
+After=network.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=root
+ExecStart=/root/venv/bin/python /root/GIT-SGcollector/ALSplot.py %i
+Restart=on-failure
+
+
+[Install]
+WantedBy=multi-user.target

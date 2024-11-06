@@ -18,7 +18,7 @@ from influxdb_client import InfluxDBClient, Point, WriteOptions
 from influxdb_client.client.write_api import SYNCHRONOUS
 
 timezone = pytz.timezone('Europe/Vienna')
-#from systemd.journal import JournalHandler
+'''#from systemd.journal import JournalHandler
 
 # Setup logging to the Systemd Journal
 #log = logging.getLogger('A370A')
@@ -36,17 +36,7 @@ g_pmax = Gauge('maximaler_Spritzdruck',
 g_cyc = Gauge('Zyklen',
            'Zyklen')
 #gt = Gauge('temperature',
-#           'temperature', ['scale'])
-
-class InfluxClient:
-    def __init__(self,token,org,bucket,url): 
-        self._org=org 
-        self._bucket = bucket
-        self._client = InfluxDBClient(url=url, token=token)
-
-def write_data(self,data,write_option=SYNCHRONOUS):
-    write_api = self._client.write_api(write_option)
-    write_api.write(self._bucket, self._org , data,write_precision='s')
+#           'temperature', ['scale'])'''
 
 def readvalue(i,ZyklenAlt,dfact,urldb,token,org,bucket):
     try:
@@ -54,50 +44,44 @@ def readvalue(i,ZyklenAlt,dfact,urldb,token,org,bucket):
 
         program = ""
 
-        urls = ['http://172.21.131.9/servlet?command=prodprotocol&hierarchy=mop&language=DE&from=day1&to=day2&maid=1695205705851135']
+        #urls = ['http://172.21.131.9/servlet?command=prodprotocol&hierarchy=mop&language=DE&from=day1&to=day2&maid=1695205705851135']
+        urls = {
+            "EN01-650": "http://172.21.131.9/servlet?command=prodprotocol&hierarchy=mop&language=DE&from=day1&to=day2&maid=1513755320190225",
+            "EN02-120": "http://172.21.131.9/servlet?command=prodprotocol&hierarchy=mop&language=DE&from=day1&to=day2&maid=1513755359594227",
+            "A01-175": "http://172.21.131.9/servlet?command=prodprotocol&hierarchy=mop&language=DE&from=day1&to=day2&maid=1510669191629004",
+            "A02-420C": "http://172.21.131.9/servlet?command=prodprotocol&hierarchy=mop&language=DE&from=day1&to=day2&maid=1510669408795006",
+            "A03-470C": "http://172.21.131.9/servlet?command=prodprotocol&hierarchy=mop&language=DE&from=day1&to=day2&maid=1510668999539002",
+            "A04-370S": "http://172.21.131.9/servlet?command=prodprotocol&hierarchy=mop&language=DE&from=day1&to=day2&maid=1510669798061008",
+            "A05-520S": "http://172.21.131.9/servlet?command=prodprotocol&hierarchy=mop&language=DE&from=day1&to=day2&maid=1517298167077055",
+            "A06-720S": "http://172.21.131.9/servlet?command=prodprotocol&hierarchy=mop&language=DE&from=day1&to=day2&maid=1517298229450057",
+            "A07-375V": "http://172.21.131.9/servlet?command=prodprotocol&hierarchy=mop&language=DE&from=day1&to=day2&maid=1559632182014003",
+            "A08-470S": "http://172.21.131.9/servlet?command=prodprotocol&hierarchy=mop&language=DE&from=day1&to=day2&maid=1585570262001631",
+            "A09-370A": "http://172.21.131.9/servlet?command=prodprotocol&hierarchy=mop&language=DE&from=day1&to=day2&maid=1695205705851135"
+            }
 
         today = date.today()
         day1 = today.strftime("%Y%m%d")
         day2 = day1
         
-        for url in urls:
-            url = url.replace('day1',day1)
-            url = url.replace('day2',day2)
-            print(url)
-            #df = df.append(selenium_import2.get_data_from_url(url,program))
-            df = pd.concat([df, selenium_import2.get_data_from_url(url,program)])
-        #print(df)
+        #for url in urls:
+        url = urls.get(bucket)
+        url = url.replace('day1',day1)
+        url = url.replace('day2',day2)
+        print(url)
+        df = pd.concat([df, selenium_import2.get_data_from_url(url,program)])
 
-        #dftemp = sensorREST(df)
-        #df = dftemp
         Zyklen = df.iat[-1,3]
         pmax = df.iat[-1,12]
         print("Zyklen: ", Zyklen," pmax: ",pmax)
-        #idbstring = "test,Zyklen="+str(Zyklen)+" Pmax="+str(pmax)
-        '''data = []
-        data.append("{measurement},Cycles={Zyklen},Pmax={pmax}"
-                .format(measurement="test",
-                        Zyklen=df.iat[-1,3],
-                        pmax=df.iat[-1,12]))'''
-
-        '''#if Zyklen > ZyklenAlt:
-            #g_cyc.set(Zyklen)
-            #g_pmax.set(pmax)
-
-            #client.write_data([idbstring])'''
-        
-        #print(df.columns)
-
-        #print(df.datetime)
-        #print(df.index_y)
-        print(df)
 
         for ind in df.index:
-            if df['minute'][ind] == df['minute'][ind+1]:
-                print(df['datetime'][ind])
-                df['datetime'][ind+3] = df['datetime'][ind+3] + df['Zykluszeit'][ind]
-            if ind+3 == len(df):
-                break
+            if ind > 1:
+                if df.loc[ind, 'datetime'] == df.loc[ind - 1, 'datetime']:
+                    df.loc[ind, 'datetime'] = df.loc[ind, 'datetime'] + pd.Timedelta(df.loc[ind, 'Zykluszeit'], "seconds")
+                elif df.loc[ind, 'datetime'] < df.loc[ind - 1, 'datetime']:
+                    df.loc[ind, 'datetime'] = df.loc[ind - 1, 'datetime'] + pd.Timedelta(df.loc[ind, 'Zykluszeit'], "seconds")
+                if ind == df.index[-1]:
+                    break
 
         #print(df.datetime)
         if not dfact.empty:
@@ -106,59 +90,43 @@ def readvalue(i,ZyklenAlt,dfact,urldb,token,org,bucket):
             dfnew2 = dfnew1.drop_duplicates(keep=False)
 
             #Definition eines neuen Index basierend auf Datum und Zeit
-            format = '%Y-%m-%d %H:%M:%S'
+            format = '%Y-%m-%d %H:%M:%S.%f'
             dfnew2['datetime'] = dfnew2['datetime'].astype(str)
+            #Formatierung um einen Index aus datetime bilden zu können
             dfnew2['Datetime'] = pd.to_datetime(dfnew2["datetime"], format=format)
-            #print(df['Datetime'])
             dfnew2 = dfnew2.set_index(pd.DatetimeIndex(dfnew2["Datetime"]))
+            #Lokalisierung auf AT, da InfluxDB alles als UTC Zeit abspeichert
             dfnew2.index = dfnew2.index.tz_localize('Europe/Vienna')
-            #dfnew2.index = dfnew2.index.tz_convert(pytz.utc)
-            #dfnew2.set_index(["Datetime"], inplace=True)
-            #dfnew2.index = dfnew2.index.tz_convert('Europe/Vienna')
             dfnew2.index = dfnew2.index.tz_convert('UTC')
             dfnew2 = dfnew2.drop(["datetime"], axis=1)
-            #print(dfnew2.columns)
             
             #Schreibt den df in InfluxDB
-            '''with InfluxDBClient(url=urldb, token=token, org=org) as client:
+            with InfluxDBClient(url=urldb, token=token, org=org) as client:
                 with client.write_api(write_options=SYNCHRONOUS) as write_api:
-                    #write_api.write(bucket=bucket, record=dfnew2)
-                    write_api.write(bucket=bucket, record=dfnew2, data_frame_measurement_name='demo')'''
+                    write_api.write(bucket=bucket, record=dfnew2, data_frame_measurement_name='demo')
 
             print(dfnew2)
         else:
             print(df)
 
-        #print(df)
-
         return df
 
     except RuntimeError as e:
-        # GPIO access may require sudo permissions
-        # Other RuntimeError exceptions may occur, but
-        # are common.  Just try again.
-        #log.error("RuntimeError: {}".format(e))
         print(e)
     
 if __name__ == "__main__":
-    # Expose metrics
-    '''metrics_port = 8001
-    start_http_server(metrics_port)
-    print("Serving sensor metrics on :{}".format(metrics_port))'''
-    #log.info("Serving sensor metrics on :{}".format(metrics_port))
 
+    #Liest den Bucketnamen aus dem Input beim Scriptstart ein über ALSplot.py Input
+    bucket = str(sys.argv[1])
+    
     load_dotenv()
     # You can generate a Token from the "Tokens Tab" in the UI
 
     token = os.getenv('TOKEN')
     org = os.getenv('ORG')
-    bucket = os.getenv('BUCKET')
+    #bucket = os.getenv('BUCKET')
     urldb = "http://172.21.135.18:8086"
-
-    #IC = InfluxClient(token,org,bucket,url)
-
-    #client = InfluxDBClient(url=url, token=token)
-    
+   
     i = 0
     ZyklenAlt = 0
     dfact = pd.DataFrame()
