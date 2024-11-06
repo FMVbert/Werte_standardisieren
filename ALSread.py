@@ -70,6 +70,12 @@ def readvalue(i,ZyklenAlt,dfact,urldb,token,org,bucket):
         #pmax = df.iat[-1,12]
         #print("Zyklen: ", Zyklen," pmax: ",pmax)
 
+        # Check if the column is of type str
+        if df['Zykluszeit'].dtype == 'object' and df['Zykluszeit'].apply(lambda x: isinstance(x, str)).all():
+            # Convert the column to float
+            df['Zykluszeit'] = df['Zykluszeit'].astype(float)
+
+
         for ind in df.index:
             if ind > 1:
                 if df.loc[ind, 'datetime'] == df.loc[ind - 1, 'datetime']:
@@ -138,9 +144,10 @@ def extract_tables_from_frame(driver, program):
             i = 2
             n = 1
 
-            while i <= len(tables):
+            while i+1 <= len(tables):
+                #print(i)
                 data_table = pd.concat([data_table, tables[i].iloc[1:]])
-                print(data_table)
+                #print(data_table)
                 if len(tables) > 3:
                     # Kontrolliert, ob der Datensatz vom ALS konsistent ist
                     # oder ob weitere Tabellen mit inkonsistenten Paramtern
@@ -150,7 +157,7 @@ def extract_tables_from_frame(driver, program):
                             print("Header komisch i+2")
                             i = len(tables)+1
                         else:
-                            i = i+2
+                            i = i+1
 
                     if i <= len(tables):
                         if tables[i+3].columns[0] == "Parameter":
@@ -158,7 +165,8 @@ def extract_tables_from_frame(driver, program):
                                 print("Header komisch i+3")
                                 i = len(tables)+1
                             else:
-                                i = i+3
+                                i = i+2
+                i = i+1
          
             filename_table = tables[1]
             # Convert comma decimals to float in the data_table
@@ -331,8 +339,10 @@ if __name__ == "__main__":
 
     #Liest den Bucketnamen aus dem Input beim Scriptstart ein über ALSplot.py Input
     #bucket = str(sys.argv[1])
-    bucket = "A04-370S"
-
+    #bucket = "A06-720S"
+    #bucket = "A09-370A"
+    #bucket = "EN01-650"
+    bucket = "EN02-120"
     load_dotenv()
     # You can generate a Token from the "Tokens Tab" in the UI
 
