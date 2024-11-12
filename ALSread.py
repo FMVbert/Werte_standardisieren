@@ -71,19 +71,21 @@ def readvalue(i,ZyklenAlt,dfact,urldb,token,org,bucket):
         #print("Zyklen: ", Zyklen," pmax: ",pmax)
 
         # Check if the column is of type str
-        if df['Zykluszeit'].dtype == 'object' and df['Zykluszeit'].apply(lambda x: isinstance(x, str)).all():
-            # Convert the column to float
-            df['Zykluszeit'] = df['Zykluszeit'].astype(float)
+        if not df.empty:
+            if df['Zykluszeit'].dtype == 'object' and df['Zykluszeit'].apply(lambda x: isinstance(x, str)).all():
+                # Convert the column to float
+                df['Zykluszeit'] = df['Zykluszeit'].astype(float)
 
 
-        for ind in df.index:
-            if ind > 1:
-                if df.loc[ind, 'datetime'] == df.loc[ind - 1, 'datetime']:
-                    df.loc[ind, 'datetime'] = df.loc[ind, 'datetime'] + pd.Timedelta(df.loc[ind, 'Zykluszeit'], "seconds")
-                elif df.loc[ind, 'datetime'] < df.loc[ind - 1, 'datetime']:
-                    df.loc[ind, 'datetime'] = df.loc[ind - 1, 'datetime'] + pd.Timedelta(df.loc[ind, 'Zykluszeit'], "seconds")
-                if ind == df.index[-1]:
-                    break
+        if not df.empty:
+            for ind in df.index:
+                if ind > 1:
+                    if df.loc[ind, 'datetime'] == df.loc[ind - 1, 'datetime']:
+                        df.loc[ind, 'datetime'] = df.loc[ind, 'datetime'] + pd.Timedelta(df.loc[ind, 'Zykluszeit'], "seconds")
+                    elif df.loc[ind, 'datetime'] < df.loc[ind - 1, 'datetime']:
+                        df.loc[ind, 'datetime'] = df.loc[ind - 1, 'datetime'] + pd.Timedelta(df.loc[ind, 'Zykluszeit'], "seconds")
+                    if ind == df.index[-1]:
+                        break
 
         #print(df.datetime)
         if not dfact.empty:
@@ -91,7 +93,7 @@ def readvalue(i,ZyklenAlt,dfact,urldb,token,org,bucket):
             dfnew1 = pd.concat([df,dfact])
             dfnew2 = dfnew1.drop_duplicates(keep=False)
 
-            #Definition eines neuen Index basierend auf Datum und Zeit
+            '''#Definition eines neuen Index basierend auf Datum und Zeit
             format = '%Y-%m-%d %H:%M:%S.%f'
             #dfnew2['datetime'] = dfnew2['datetime'].astype(str)
             dfnew2.loc[:,'datetime'] = dfnew2['datetime'].astype(str)
@@ -101,8 +103,30 @@ def readvalue(i,ZyklenAlt,dfact,urldb,token,org,bucket):
             #Lokalisierung auf AT, da InfluxDB alles als UTC Zeit abspeichert
             dfnew2.index = dfnew2.index.tz_localize('Europe/Vienna')
             dfnew2.index = dfnew2.index.tz_convert('UTC')
-            dfnew2 = dfnew2.drop(["datetime"], axis=1)
+            dfnew2 = dfnew2.drop(["datetime"], axis=1)'''
             
+            # Define the expected datetime format
+            format = '%Y-%m-%d %H:%M:%S.%f'
+
+            # Convert datetime column to string to handle cases without milliseconds
+            dfnew2['datetime'] = dfnew2['datetime'].astype(str)
+
+            # Check if milliseconds are missing based on string length and add ".000" if needed
+            dfnew2['datetime'] = dfnew2['datetime'].apply(lambda x: x if len(x) > 19 else x + '.000')
+
+            # Parse datetime column with milliseconds added where necessary
+            dfnew2['Datetime'] = pd.to_datetime(dfnew2['datetime'], format=format)
+
+            # Set the datetime column as the index
+            dfnew2 = dfnew2.set_index(pd.DatetimeIndex(dfnew2["Datetime"]))
+
+            # Localize and convert to UTC
+            dfnew2.index = dfnew2.index.tz_localize('Europe/Vienna')
+            dfnew2.index = dfnew2.index.tz_convert('UTC')
+
+            # Drop the original datetime column if it's no longer needed
+            dfnew2 = dfnew2.drop(["datetime"], axis=1)
+
             #Schreibt den df in InfluxDB
             with InfluxDBClient(url=urldb, token=token, org=org) as client:
                 with client.write_api(write_options=SYNCHRONOUS) as write_api:
@@ -338,11 +362,13 @@ def get_data_from_url(url,program):
 if __name__ == "__main__":
 
     #Liest den Bucketnamen aus dem Input beim Scriptstart ein über ALSplot.py Input
-    #bucket = str(sys.argv[1])
+    bucket = str(sys.argv[1])
+    #bucket = "A04-370S"
     #bucket = "A06-720S"
     #bucket = "A09-370A"
     #bucket = "EN01-650"
-    bucket = "EN02-120"
+    #bucket = "EN02-120"
+    #bucket = "A02-420C"
     load_dotenv()
     # You can generate a Token from the "Tokens Tab" in the UI
 

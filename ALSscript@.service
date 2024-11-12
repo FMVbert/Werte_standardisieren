@@ -6,7 +6,7 @@ StartLimitIntervalSec=0
 [Service]
 Type=simple
 User=root
-ExecStart=/root/venv/bin/python /root/GIT-SGcollector/ALSplot.py %i
+ExecStart=/root/venv/bin/python /root/GIT-SGcollector/ALSread.py %i
 Restart=on-failure
 
 
