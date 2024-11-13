@@ -127,6 +127,22 @@ def readvalue(i,ZyklenAlt,dfact,urldb,token,org,bucket):
             # Drop the original datetime column if it's no longer needed
             dfnew2 = dfnew2.drop(["datetime"], axis=1)
 
+            # List of columns to ignore during the conversion check
+            ignore_columns = ['Ausschuss', 'Auftrag', 'Programm', 'Werkzeug', 'Datetime']
+
+            # Iterate over each column in the dataframe
+            for column in dfnew2.columns:
+                # Only process columns that are not in the ignore list
+                if column not in ignore_columns:
+                    # Check if the column is not in numerical form
+                    if not pd.api.types.is_numeric_dtype(dfnew2[column]):
+                        # Check if the column is a Series before attempting conversion
+                        if isinstance(dfnew2[column], (pd.Series, list, tuple, np.ndarray)):
+                            # Convert the column to float
+                            dfnew2[column] = pd.to_numeric(dfnew2[column], errors='coerce')
+                        else:
+                            print(f"Column {column} is not a 1-dimensional Series, list, or array. Skipping conversion.")
+
             #Schreibt den df in InfluxDB
             with InfluxDBClient(url=urldb, token=token, org=org) as client:
                 with client.write_api(write_options=SYNCHRONOUS) as write_api:
@@ -362,9 +378,9 @@ def get_data_from_url(url,program):
 if __name__ == "__main__":
 
     #Liest den Bucketnamen aus dem Input beim Scriptstart ein über ALSplot.py Input
-    bucket = str(sys.argv[1])
+    #bucket = str(sys.argv[1])
     #bucket = "A04-370S"
-    #bucket = "A06-720S"
+    bucket = "A06-720S"
     #bucket = "A09-370A"
     #bucket = "EN01-650"
     #bucket = "EN02-120"
