@@ -378,9 +378,9 @@ def get_data_from_url(url,program):
 if __name__ == "__main__":
 
     #Liest den Bucketnamen aus dem Input beim Scriptstart ein über ALSplot.py Input
-    #bucket = str(sys.argv[1])
+    bucket = str(sys.argv[1])
     #bucket = "A04-370S"
-    bucket = "A06-720S"
+    #bucket = "A06-720S"
     #bucket = "A09-370A"
     #bucket = "EN01-650"
     #bucket = "EN02-120"
